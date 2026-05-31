@@ -79,6 +79,19 @@ async fn get_chart(
     let res = tokio::task::spawn_blocking(move || {
         let mut scraper_lock = state.scraper.lock().map_err(|e| anyhow::anyhow!("Mutex poison error: {}", e))?;
         
+        // Pre-flight check: if the browser or tab is not alive, recreate it immediately!
+        if !scraper_lock.is_alive() {
+            info!("Scraper session is unresponsive. Recreating browser instance...");
+            match TradingViewScraper::new(scraper_lock.config.clone()) {
+                Ok(new_scraper) => {
+                    *scraper_lock = new_scraper;
+                }
+                Err(err) => {
+                    error!("Failed to recreate scraper during pre-flight check: {:?}", err);
+                }
+            }
+        }
+
         let run_result = if scraper_lock.config.use_save_shortcut {
             info!("Using save shortcut method to capture chart image data...");
             scraper_lock.get_chart_image_url(&ticker, &interval)

@@ -20,7 +20,9 @@ impl TradingViewScraper {
         info!("Initializing TradingViewScraper...");
         
         // Create custom Chrome user data directory to write preferences
-        let profile_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")).join("target/chrome_profile");
+        let profile_dir = std::env::current_dir()
+            .map_err(|e| anyhow!("Failed to get current directory: {}", e))?
+            .join("target/chrome_profile");
         let preferences_dir = profile_dir.join("Default");
         std::fs::create_dir_all(&preferences_dir)?;
 
@@ -54,6 +56,10 @@ impl TradingViewScraper {
             OsStr::new("--enable-clipboard-read-write"),
             OsStr::new("--disable-web-security"),
             OsStr::new("--allow-running-insecure-content"),
+            OsStr::new("--disable-renderer-backgrounding"),
+            OsStr::new("--disable-background-timer-throttling"),
+            OsStr::new("--disable-backgrounding-occluded-windows"),
+            OsStr::new("--disable-hang-monitor"),
             OsStr::new(&window_size_arg),
         ];
         builder.args(browser_args);
@@ -320,5 +326,10 @@ impl TradingViewScraper {
         } else {
             None
         }
+    }
+
+    /// Verifies if the browser and tab connection are still active and responding.
+    pub fn is_alive(&self) -> bool {
+        self.tab.evaluate("1", false).is_ok()
     }
 }
