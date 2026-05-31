@@ -26,7 +26,7 @@ struct ChartResponse {
 }
 
 struct AppState {
-    config: Config,
+    scraper: std::sync::Mutex<TradingViewScraper>,
 }
 
 #[tokio::main]
@@ -40,7 +40,11 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::new()?;
     info!("Configuration loaded. RUST_LOG={}", config.rust_log);
 
-    let state = Arc::new(AppState { config });
+    // Initialize persistent scraper singleton
+    let scraper = TradingViewScraper::new(config)?;
+    let state = Arc::new(AppState {
+        scraper: std::sync::Mutex::new(scraper),
+    });
 
     // Build routes
     let app = Router::new()
@@ -68,28 +72,57 @@ async fn get_chart(
 ) -> Result<Json<ChartResponse>, impl IntoResponse> {
     info!("GET /chart request received for ticker={}, interval={}", params.ticker, params.interval);
 
-    let config = state.config.clone();
     let ticker = params.ticker.clone();
     let interval = params.interval.clone();
     
     // Spawn browser session in a blocking task since headless_chrome has blocking API
     let res = tokio::task::spawn_blocking(move || {
-        let scraper = TradingViewScraper::new(config)?;
+        let mut scraper_lock = state.scraper.lock().map_err(|e| anyhow::anyhow!("Mutex poison error: {}", e))?;
         
-        let (image_url, png_url) = if scraper.config.use_save_shortcut {
+        let run_result = if scraper_lock.config.use_save_shortcut {
             info!("Using save shortcut method to capture chart image data...");
-            let image_data = scraper.get_chart_image_url(&ticker, &interval)?;
-            (image_data.clone(), image_data)
+            scraper_lock.get_chart_image_url(&ticker, &interval)
         } else {
             info!("Using traditional click method to capture chart screenshot link...");
-            let raw_link = scraper.get_screenshot_link(&ticker, &interval)?;
-            let png_link = TradingViewScraper::convert_link_to_image_url(&raw_link)
-                .unwrap_or_else(|| raw_link.clone());
-            (raw_link, png_link)
+            scraper_lock.get_screenshot_link(&ticker, &interval)
         };
-        
-        Ok::<_, anyhow::Error>((image_url, png_url))
+
+        match run_result {
+            Ok(url) => {
+                let png_url = if scraper_lock.config.use_save_shortcut {
+                    url.clone()
+                } else {
+                    TradingViewScraper::convert_link_to_image_url(&url).unwrap_or_else(|| url.clone())
+                };
+                Ok::<_, anyhow::Error>((url, png_url))
+            }
+            Err(e) => {
+                error!("Scraping failed: {:?}. Attempting to recreate browser and retry...", e);
+                // Recreate the scraper
+                match TradingViewScraper::new(scraper_lock.config.clone()) {
+                    Ok(new_scraper) => {
+                        *scraper_lock = new_scraper;
+                        // Retry
+                        let retry_result = if scraper_lock.config.use_save_shortcut {
+                            scraper_lock.get_chart_image_url(&ticker, &interval)?
+                        } else {
+                            scraper_lock.get_screenshot_link(&ticker, &interval)?
+                        };
+                        let png_url = if scraper_lock.config.use_save_shortcut {
+                            retry_result.clone()
+                        } else {
+                            TradingViewScraper::convert_link_to_image_url(&retry_result).unwrap_or_else(|| retry_result.clone())
+                        };
+                        Ok((retry_result, png_url))
+                    }
+                    Err(recreate_err) => {
+                        Err(anyhow::anyhow!("Failed to recreate scraper after failure: {}. Original error: {}", recreate_err, e))
+                    }
+                }
+            }
+        }
     }).await;
+
 
     match res {
         Ok(Ok((image_url, png_url))) => {

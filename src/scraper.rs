@@ -70,11 +70,17 @@ impl TradingViewScraper {
         
         let tab = browser.new_tab().map_err(|e| anyhow!("Failed to get tab: {}", e))?;
 
-        Ok(Self {
+        let scraper = Self {
             _browser: browser,
             tab,
             config,
-        })
+        };
+
+        if !scraper.config.session_id.is_empty() {
+            scraper.set_auth_cookies()?;
+        }
+
+        Ok(scraper)
     }
 
     /// Sets session authentication cookies.
@@ -156,16 +162,8 @@ impl TradingViewScraper {
             )
         };
 
-        if use_layout {
-            info!("Navigating initially to layout page: {}", chart_url);
-            self.tab.navigate_to(&chart_url).map_err(|e| anyhow!("Failed to navigate initially: {}", e))?;
-            self.set_auth_cookies()?;
-            info!("Refreshing page to apply auth cookies...");
-            self.tab.reload(false, None).map_err(|e| anyhow!("Failed to reload page: {}", e))?;
-        } else {
-            info!("Navigating to generic chart page: {}", chart_url);
-            self.tab.navigate_to(&chart_url).map_err(|e| anyhow!("Failed to navigate: {}", e))?;
-        }
+        info!("Navigating to chart: {}", chart_url);
+        self.tab.navigate_to(&chart_url).map_err(|e| anyhow!("Failed to navigate: {}", e))?;
 
         info!("Waiting for chart elements to render...");
         let element_selector = "#header-toolbar-chart-styles, .tv-header, [data-name='legend-source-item'], .chart-container, .tv-chart-container";
@@ -174,6 +172,7 @@ impl TradingViewScraper {
         
         Ok(())
     }
+
 
     /// Focuses the page by clicking the main canvas element.
     pub fn focus_page(&self) -> Result<()> {
