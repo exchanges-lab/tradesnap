@@ -80,8 +80,14 @@ cargo run
 
 ```bash
 # 构建镜像（同时打版本 tag 和 latest tag）
-VERSION=v0.2.2
-docker build -t tradesnap:${VERSION} -t tradesnap:latest .
+VERSION=v1.0
+IMAGE=ghcr.io/exchanges-lab/tradesnap
+
+docker build -t ${IMAGE}:${VERSION} -t ${IMAGE}:latest .
+
+# 推送镜像
+docker push ${IMAGE}:${VERSION}
+docker push ${IMAGE}:latest
 
 # 启动服务
 docker compose up -d

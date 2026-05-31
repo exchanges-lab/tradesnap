@@ -1,6 +1,6 @@
 services:
   tradesnap:
-    image: tradesnap:v0.2.2
+    image: ghcr.io/exchanges-lab/tradesnap:v1.0
     container_name: tradesnap
     env_file:
       - .env
