@@ -31,14 +31,22 @@ struct AppState {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize structured logging via tracing-subscriber
-    tracing_subscriber::fmt::init();
+    // Load .env BEFORE tracing init so RUST_LOG is available
+    let _ = dotenvy::dotenv();
+
+    // Initialize structured logging with env filter (respects RUST_LOG, defaults to info)
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
 
     info!("Starting TradeSnap application...");
 
     // Initialize configuration
     let config = Config::new()?;
-    info!("Configuration loaded. RUST_LOG={}", config.rust_log);
+    info!("Configuration loaded successfully");
 
     // Initialize persistent scraper singleton
     let scraper = TradingViewScraper::new(config)?;
