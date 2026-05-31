@@ -32,6 +32,8 @@ tradesnap/
 │   └── simple.rs       # 浏览器交互式独立调试脚本
 ├── tests/              # 测试目录
 │   └── config_test.rs  # 配置与转换正则集成测试
+├── Dockerfile          # 多阶段构建 Docker 镜像定义
+├── docker-compose.yml  # Docker Compose 部署配置（cycle 网络）
 ├── .env                # 本地运行环境密钥文件（已忽略提交）
 ├── .env.example        # 环境变量模板
 ├── Cargo.toml          # Rust 包依赖与定义文件
@@ -62,7 +64,7 @@ tradesnap/
 ### 4.1 准备工作
 确保系统已安装 Chromium 浏览器。如果在 Linux/Ubuntu 环境中运行，程序会自动寻找 Snap 安装的 Chromium 地址 `/snap/bin/chromium`。
 
-### 4.2 编译与启动
+### 4.2 本地编译与启动
 
 ```bash
 # 1. 复制并编辑配置文件
@@ -70,6 +72,19 @@ cp .env.example .env
 
 # 2. 启动服务 (默认监听端口 8003)
 cargo run
+```
+
+### 4.3 Docker 部署
+
+项目使用 cycle 内部网络，服务间通过容器名 `tradesnap` 作为 hostname 互访，无需端口映射。
+
+```bash
+# 构建镜像（同时打版本 tag 和 latest tag）
+VERSION=v0.2.2
+docker build -t tradesnap:${VERSION} -t tradesnap:latest .
+
+# 启动服务
+docker compose up -d
 ```
 
 ---

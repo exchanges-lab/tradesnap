@@ -1,12 +1,9 @@
 services:
   tradesnap:
-    build: .
-    image: tradesnap:latest
+    image: tradesnap:v0.2.2
     container_name: tradesnap
     env_file:
       - .env
-    ports:
-      - "8003:8003"
     volumes:
       - ./target/chrome_profile:/app/target/chrome_profile
     networks:

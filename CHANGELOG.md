@@ -7,6 +7,14 @@
 ### Added
 - (暂无)
 
+## [0.2.2] - 2026-05-31
+### Fixed
+- **浏览器空闲超时断连 (Idle Browser Timeout)**：将 `idle_browser_timeout` 从默认 30 秒调整为 24 小时，解决服务启动后约 30 秒浏览器 WebSocket 连接自动断开导致 `Got a timeout while listening for browser events` 错误的问题。
+- **日志初始化顺序 (Tracing Init Order)**：将 `.env` 文件加载提前到 tracing 初始化之前，确保 `RUST_LOG` 环境变量被正确读取，修复启动后无任何日志输出的问题。
+
+### Changed
+- **Docker Compose 移除端口映射**：服务通过 cycle 内部网络通信，不再需要将 8003 端口映射到宿主机。
+
 ## [0.2.1] - 2026-05-31
 ### Optimized
 - **持久化浏览器会话 (Persistent Browser Session)**：将 Scraper 单例作为持久化句柄常驻在 Axum 状态中，避免了每次 API 请求时冷启动 Chromium 进程，提速 2~3 秒。
