@@ -1,0 +1,11 @@
+/target
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.antigravitycli/
+
