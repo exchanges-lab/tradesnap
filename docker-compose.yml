@@ -1,0 +1,21 @@
+services:
+  tradesnap:
+    build:
+      context: .
+      args:
+        - IMAGE_VERSION=v0.2.1
+    image: tradesnap:latest
+    container_name: tradesnap
+    env_file:
+      - .env
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./target/chrome_profile:/app/target/chrome_profile
+    networks:
+      - cycle
+    restart: unless-stopped
+
+networks:
+  cycle:
+    external: true
