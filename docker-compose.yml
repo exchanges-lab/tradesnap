@@ -1,9 +1,6 @@
 services:
   tradesnap:
-    build:
-      context: .
-      args:
-        - IMAGE_VERSION=v0.2.1
+    build: .
     image: tradesnap:latest
     container_name: tradesnap
     env_file:

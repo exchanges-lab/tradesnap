@@ -16,11 +16,5 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY --from=builder /app/target/release/tradesnap /app/tradesnap
 
-ARG IMAGE_VERSION=unknown
-RUN echo "Image version: ${IMAGE_VERSION}" > /etc/image-version
+ENTRYPOINT ["/app/tradesnap"]
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/app/tradesnap"]
