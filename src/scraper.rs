@@ -23,6 +23,18 @@ impl TradingViewScraper {
         let profile_dir = std::env::current_dir()
             .map_err(|e| anyhow!("Failed to get current directory: {}", e))?
             .join("target/chrome_profile");
+
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(path_str) = profile_dir.to_str() {
+                info!("Cleaning up any orphaned Chromium processes using profile: {}", path_str);
+                let _ = std::process::Command::new("pkill")
+                    .args(&["-9", "-f", path_str])
+                    .status();
+                std::thread::sleep(Duration::from_millis(300));
+            }
+        }
+
         let preferences_dir = profile_dir.join("Default");
         std::fs::create_dir_all(&preferences_dir)?;
 
