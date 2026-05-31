@@ -59,6 +59,8 @@ impl TradingViewScraper {
         let mut builder = LaunchOptions::default_builder();
         builder.headless(config.headless);
         builder.user_data_dir(Some(profile_dir));
+        // Keep browser alive for long-running server (default 30s is way too short)
+        builder.idle_browser_timeout(Duration::from_secs(86400));
 
         let window_size_arg = format!("--window-size={},{}", config.window_width, config.window_height);
         let browser_args = vec![
