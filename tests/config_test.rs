@@ -23,11 +23,17 @@ async fn test_config_load_from_env() {
 fn test_convert_link_to_image_url() {
     let input = "https://www.tradingview.com/x/abCdEfGh/";
     let output = tradesnap::TradingViewScraper::convert_link_to_image_url(input);
-    assert_eq!(output, Some("https://s3.tradingview.com/snapshots/a/abCdEfGh.png".to_string()));
+    assert_eq!(
+        output,
+        Some("https://s3.tradingview.com/snapshots/a/abCdEfGh.png".to_string())
+    );
 
     let input_regional = "https://in.tradingview.com/x/abCdEfG";
     let output_regional = tradesnap::TradingViewScraper::convert_link_to_image_url(input_regional);
-    assert_eq!(output_regional, Some("https://s3.tradingview.com/snapshots/a/abCdEfG.png".to_string()));
+    assert_eq!(
+        output_regional,
+        Some("https://s3.tradingview.com/snapshots/a/abCdEfG.png".to_string())
+    );
 }
 
 #[test]

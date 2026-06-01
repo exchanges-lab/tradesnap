@@ -1,9 +1,9 @@
 use axum::{
+    Json, Router,
     extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
-    Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -63,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
     // Run the server
     let addr = SocketAddr::from(([0, 0, 0, 0], 8003));
     info!("Listening on {}", addr);
-    
+
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
 
@@ -78,15 +78,21 @@ async fn get_chart(
     State(state): State<Arc<AppState>>,
     Query(params): Query<ChartParams>,
 ) -> Result<Json<ChartResponse>, impl IntoResponse> {
-    info!("GET /chart request received for ticker={}, interval={}", params.ticker, params.interval);
+    info!(
+        "GET /chart request received for ticker={}, interval={}",
+        params.ticker, params.interval
+    );
 
     let ticker = params.ticker.clone();
     let interval = params.interval.clone();
-    
+
     // Spawn browser session in a blocking task since headless_chrome has blocking API
     let res = tokio::task::spawn_blocking(move || {
-        let mut scraper_lock = state.scraper.lock().map_err(|e| anyhow::anyhow!("Mutex poison error: {}", e))?;
-        
+        let mut scraper_lock = state
+            .scraper
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Mutex poison error: {}", e))?;
+
         // Pre-flight check: if the browser or tab is not alive, recreate it immediately!
         if !scraper_lock.is_alive() {
             info!("Scraper session is unresponsive. Recreating browser instance...");
@@ -95,7 +101,10 @@ async fn get_chart(
                     *scraper_lock = new_scraper;
                 }
                 Err(err) => {
-                    error!("Failed to recreate scraper during pre-flight check: {:?}", err);
+                    error!(
+                        "Failed to recreate scraper during pre-flight check: {:?}",
+                        err
+                    );
                 }
             }
         }
@@ -113,12 +122,16 @@ async fn get_chart(
                 let png_url = if scraper_lock.config.use_save_shortcut {
                     url.clone()
                 } else {
-                    TradingViewScraper::convert_link_to_image_url(&url).unwrap_or_else(|| url.clone())
+                    TradingViewScraper::convert_link_to_image_url(&url)
+                        .unwrap_or_else(|| url.clone())
                 };
                 Ok::<_, anyhow::Error>((url, png_url))
             }
             Err(e) => {
-                error!("Scraping failed: {:?}. Attempting to recreate browser and retry...", e);
+                error!(
+                    "Scraping failed: {:?}. Attempting to recreate browser and retry...",
+                    e
+                );
                 // Recreate the scraper
                 match TradingViewScraper::new(scraper_lock.config.clone()) {
                     Ok(new_scraper) => {
@@ -132,18 +145,21 @@ async fn get_chart(
                         let png_url = if scraper_lock.config.use_save_shortcut {
                             retry_result.clone()
                         } else {
-                            TradingViewScraper::convert_link_to_image_url(&retry_result).unwrap_or_else(|| retry_result.clone())
+                            TradingViewScraper::convert_link_to_image_url(&retry_result)
+                                .unwrap_or_else(|| retry_result.clone())
                         };
                         Ok((retry_result, png_url))
                     }
-                    Err(recreate_err) => {
-                        Err(anyhow::anyhow!("Failed to recreate scraper after failure: {}. Original error: {}", recreate_err, e))
-                    }
+                    Err(recreate_err) => Err(anyhow::anyhow!(
+                        "Failed to recreate scraper after failure: {}. Original error: {}",
+                        recreate_err,
+                        e
+                    )),
                 }
             }
         }
-    }).await;
-
+    })
+    .await;
 
     match res {
         Ok(Ok((image_url, png_url))) => {

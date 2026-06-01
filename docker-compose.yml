@@ -1,11 +1,9 @@
 services:
   tradesnap:
-    image: ghcr.io/exchanges-lab/tradesnap:v1.0
+    image: ghcr.io/exchanges-lab/tradesnap:latest
     container_name: tradesnap
     env_file:
       - .env
-    volumes:
-      - ./target/chrome_profile:/app/target/chrome_profile
     networks:
       - cycle
     restart: unless-stopped

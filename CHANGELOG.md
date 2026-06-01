@@ -4,8 +4,16 @@
 格式遵循 Keep a Changelog，版本号遵循 SemVer。
 
 ## [Unreleased]
+
 ### Added
-- (暂无)
+- 新增 `MCP_SCRAPER_USE_SAVE_SHORTCUT` 环境变量及配置项。允许选择两种截图捕获模式：`true` 时通过快捷键直接提取剪贴板的 Base64 编码图片数据，`false` 时通过模拟点击 UI 生成并转换 S3 官方快照直链。
+
+### Changed
+- 清除了 `.env.example` 中 `MCP_SCRAPER_CHART_PAGE_ID` 的硬编码占位符布局 ID。
+- 规范并优化了项目整体文件结构与代码排版格式。
+
+### Fixed
+- 自动清理 Chrome Profile 目录下残留的 Chromium 锁定文件（`SingletonLock`、`SingletonSocket` 和 `SingletonCookie`），避免 Docker 容器环境下重启时出现的冷启动连接超时和崩溃问题。
 
 ## [0.2.2] - 2026-05-31
 ### Fixed

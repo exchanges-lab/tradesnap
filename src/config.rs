@@ -41,10 +41,10 @@ impl Config {
         }
 
         let rust_log = env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
-        
+
         let session_id = env::var("TRADINGVIEW_SESSION_ID")
             .map_err(|_| ConfigError::MissingVar("TRADINGVIEW_SESSION_ID".to_string()))?;
-            
+
         let session_id_sign = env::var("TRADINGVIEW_SESSION_ID_SIGN")
             .map_err(|_| ConfigError::MissingVar("TRADINGVIEW_SESSION_ID_SIGN".to_string()))?;
 
@@ -70,8 +70,8 @@ impl Config {
                 source,
             })?;
 
-        let chart_page_id = env::var("MCP_SCRAPER_CHART_PAGE_ID")
-            .unwrap_or_else(|_| "".to_string());
+        let chart_page_id =
+            env::var("MCP_SCRAPER_CHART_PAGE_ID").unwrap_or_else(|_| "".to_string());
 
         let use_save_shortcut = env::var("MCP_SCRAPER_USE_SAVE_SHORTCUT")
             .unwrap_or_else(|_| "true".to_string())

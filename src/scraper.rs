@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Result};
-use headless_chrome::{Browser, LaunchOptions, Tab};
+use crate::Config;
+use anyhow::{Result, anyhow};
 use headless_chrome::protocol::cdp::Network::CookieParam;
+use headless_chrome::{Browser, LaunchOptions, Tab};
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::time::Duration;
 use tracing::info;
-use crate::Config;
 
 /// A scraper for capturing TradingView chart screenshots using headless Chrome.
 pub struct TradingViewScraper {
@@ -18,7 +18,7 @@ impl TradingViewScraper {
     /// Initialises a new `TradingViewScraper` with the provided configuration.
     pub fn new(config: Config) -> Result<Self> {
         info!("Initializing TradingViewScraper...");
-        
+
         // Create custom Chrome user data directory to write preferences
         let profile_dir = std::env::current_dir()
             .map_err(|e| anyhow!("Failed to get current directory: {}", e))?
@@ -27,11 +27,24 @@ impl TradingViewScraper {
         #[cfg(target_os = "linux")]
         {
             if let Some(path_str) = profile_dir.to_str() {
-                info!("Cleaning up any orphaned Chromium processes using profile: {}", path_str);
+                info!(
+                    "Cleaning up any orphaned Chromium processes using profile: {}",
+                    path_str
+                );
                 let _ = std::process::Command::new("pkill")
-                    .args(&["-9", "-f", path_str])
+                    .args(["-9", "-f", path_str])
                     .status();
                 std::thread::sleep(Duration::from_millis(300));
+            }
+        }
+
+        // Delete stale Chromium locks that cause Startup/Connection timeout in Docker volumes
+        let lock_files = ["SingletonLock", "SingletonSocket", "SingletonCookie"];
+        for name in &lock_files {
+            let path = profile_dir.join(name);
+            if path.symlink_metadata().is_ok() {
+                info!("Removing stale lock/socket file: {:?}", path);
+                let _ = std::fs::remove_file(&path);
             }
         }
 
@@ -53,7 +66,10 @@ impl TradingViewScraper {
             }
         });
         std::fs::write(&preferences_file, serde_json::to_string(&prefs_json)?)?;
-        info!("Written custom Chrome Preferences to: {:?}", preferences_file);
+        info!(
+            "Written custom Chrome Preferences to: {:?}",
+            preferences_file
+        );
 
         // Setup browser launch options
         let mut builder = LaunchOptions::default_builder();
@@ -62,7 +78,10 @@ impl TradingViewScraper {
         // Keep browser alive for long-running server (default 30s is way too short)
         builder.idle_browser_timeout(Duration::from_secs(86400));
 
-        let window_size_arg = format!("--window-size={},{}", config.window_width, config.window_height);
+        let window_size_arg = format!(
+            "--window-size={},{}",
+            config.window_width, config.window_height
+        );
         let browser_args = vec![
             OsStr::new("--no-sandbox"),
             OsStr::new("--disable-dev-shm-usage"),
@@ -85,10 +104,15 @@ impl TradingViewScraper {
             builder.path(Some(snap_chromium));
         }
 
-        let options = builder.build().map_err(|e| anyhow!("Failed to build launch options: {}", e))?;
-        let browser = Browser::new(options).map_err(|e| anyhow!("Failed to launch browser: {}", e))?;
-        
-        let tab = browser.new_tab().map_err(|e| anyhow!("Failed to get tab: {}", e))?;
+        let options = builder
+            .build()
+            .map_err(|e| anyhow!("Failed to build launch options: {}", e))?;
+        let browser =
+            Browser::new(options).map_err(|e| anyhow!("Failed to launch browser: {}", e))?;
+
+        let tab = browser
+            .new_tab()
+            .map_err(|e| anyhow!("Failed to get tab: {}", e))?;
 
         let scraper = Self {
             _browser: browser,
@@ -140,9 +164,10 @@ impl TradingViewScraper {
             partition_key: None,
         };
 
-        self.tab.set_cookies(vec![cookie1, cookie2])
+        self.tab
+            .set_cookies(vec![cookie1, cookie2])
             .map_err(|e| anyhow!("Failed to set cookies: {}", e))?;
-        
+
         Ok(())
     }
 
@@ -158,8 +183,10 @@ impl TradingViewScraper {
             "1M" => "M".to_string(),
             "1m" => "1".to_string(),
             other => {
-                if (other.ends_with('m') || other.ends_with('M')) && other[..other.len()-1].chars().all(|c| c.is_ascii_digit()) {
-                    other[..other.len()-1].to_string()
+                if (other.ends_with('m') || other.ends_with('M'))
+                    && other[..other.len() - 1].chars().all(|c| c.is_ascii_digit())
+                {
+                    other[..other.len() - 1].to_string()
                 } else {
                     trimmed.to_string()
                 }
@@ -183,27 +210,33 @@ impl TradingViewScraper {
         };
 
         info!("Navigating to chart: {}", chart_url);
-        self.tab.navigate_to(&chart_url).map_err(|e| anyhow!("Failed to navigate: {}", e))?;
+        self.tab
+            .navigate_to(&chart_url)
+            .map_err(|e| anyhow!("Failed to navigate: {}", e))?;
 
         info!("Waiting for chart elements to render...");
         let element_selector = "#header-toolbar-chart-styles, .tv-header, [data-name='legend-source-item'], .chart-container, .tv-chart-container";
-        self.tab.wait_for_element(element_selector)
+        self.tab
+            .wait_for_element(element_selector)
             .map_err(|e| anyhow!("Timed out waiting for chart infrastructure: {}", e))?;
-        
+
         Ok(())
     }
-
 
     /// Focuses the page by clicking the main canvas element.
     pub fn focus_page(&self) -> Result<()> {
         info!("Finding main canvas element...");
-        let canvas = self.tab.wait_for_element("canvas")
+        let canvas = self
+            .tab
+            .wait_for_element("canvas")
             .map_err(|e| anyhow!("Failed to find canvas: {}", e))?;
-        
+
         info!("Clicking canvas to focus...");
-        canvas.click().map_err(|e| anyhow!("Failed to click canvas: {}", e))?;
+        canvas
+            .click()
+            .map_err(|e| anyhow!("Failed to click canvas: {}", e))?;
         std::thread::sleep(Duration::from_millis(500));
-        
+
         Ok(())
     }
 
@@ -215,27 +248,37 @@ impl TradingViewScraper {
         self.focus_page()?;
 
         info!("Finding screenshot button...");
-        let screenshot_btn = self.tab.wait_for_element("#header-toolbar-screenshot")
+        let screenshot_btn = self
+            .tab
+            .wait_for_element("#header-toolbar-screenshot")
             .map_err(|e| anyhow!("Failed to find screenshot button: {}", e))?;
 
         info!("Clicking screenshot button...");
-        screenshot_btn.click().map_err(|e| anyhow!("Failed to click screenshot button: {}", e))?;
+        screenshot_btn
+            .click()
+            .map_err(|e| anyhow!("Failed to click screenshot button: {}", e))?;
 
         // Wait for dropdown menu to render
         std::thread::sleep(Duration::from_millis(800));
 
         info!("Finding 'Copy link' element using XPath...");
-        let copy_link_el = self.tab.wait_for_xpath("//span[text()='Copy link']")
+        let copy_link_el = self
+            .tab
+            .wait_for_xpath("//span[text()='Copy link']")
             .map_err(|e| anyhow!("Failed to find 'Copy link' element: {}", e))?;
 
         info!("Clicking 'Copy link' element natively...");
-        copy_link_el.click().map_err(|e| anyhow!("Failed to click 'Copy link': {}", e))?;
+        copy_link_el
+            .click()
+            .map_err(|e| anyhow!("Failed to click 'Copy link': {}", e))?;
 
         // Poll the clipboard for the copied URL
         info!("Polling clipboard for the screenshot link...");
         let mut clipboard_url = None;
         for _ in 1..=15 {
-            let read_attempt = self.tab.evaluate("navigator.clipboard.readText()", true)
+            let read_attempt = self
+                .tab
+                .evaluate("navigator.clipboard.readText()", true)
                 .ok()
                 .and_then(|obj| obj.value)
                 .and_then(|val| val.as_str().map(|s| s.trim().to_string()));
@@ -250,7 +293,9 @@ impl TradingViewScraper {
 
         match clipboard_url {
             Some(url) => Ok(url),
-            None => Err(anyhow!("Failed to retrieve screenshot link from clipboard after retries")),
+            None => Err(anyhow!(
+                "Failed to retrieve screenshot link from clipboard after retries"
+            )),
         }
     }
 
@@ -274,7 +319,8 @@ impl TradingViewScraper {
             });
             document.dispatchEvent(event);
         "#;
-        self.tab.evaluate(trigger_js, false)
+        self.tab
+            .evaluate(trigger_js, false)
             .map_err(|e| anyhow!("Failed to trigger screenshot shortcut: {}", e))?;
 
         // Wait for clipboard to populate
@@ -292,7 +338,9 @@ impl TradingViewScraper {
 
         match image_data_url {
             Some(url) => Ok(url),
-            None => Err(anyhow!("Failed to retrieve chart image from clipboard after retries")),
+            None => Err(anyhow!(
+                "Failed to retrieve chart image from clipboard after retries"
+            )),
         }
     }
 
@@ -321,10 +369,17 @@ impl TradingViewScraper {
                 return null;
             })()
         "#;
-        
-        let obj = self.tab.evaluate(js, true)
+
+        let obj = self
+            .tab
+            .evaluate(js, true)
             .map_err(|e| anyhow!("Failed to evaluate clipboard read: {}", e))?;
-        if let Some(s) = obj.value.as_ref().and_then(|v| v.as_str()).filter(|s| s.starts_with("data:image/")) {
+        if let Some(s) = obj
+            .value
+            .as_ref()
+            .and_then(|v| v.as_str())
+            .filter(|s| s.starts_with("data:image/"))
+        {
             return Ok(Some(s.to_string()));
         }
         Ok(None)
@@ -332,11 +387,15 @@ impl TradingViewScraper {
 
     /// Converts a raw TradingView share link (e.g. `/x/`) to a direct S3 snapshot image link.
     pub fn convert_link_to_image_url(input_string: &str) -> Option<String> {
-        let re = regex::Regex::new(r"https://(?:www\.|in\.)?tradingview\.com/x/([a-zA-Z0-9]+)/?").ok()?;
+        let re = regex::Regex::new(r"https://(?:www\.|in\.)?tradingview\.com/x/([a-zA-Z0-9]+)/?")
+            .ok()?;
         if let Some(caps) = re.captures(input_string) {
             let id = caps.get(1)?.as_str();
             let first_char = id.chars().next()?.to_lowercase().to_string();
-            Some(format!("https://s3.tradingview.com/snapshots/{}/{}.png", first_char, id))
+            Some(format!(
+                "https://s3.tradingview.com/snapshots/{}/{}.png",
+                first_char, id
+            ))
         } else {
             None
         }
