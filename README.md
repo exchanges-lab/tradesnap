@@ -9,7 +9,7 @@
 ## 1. 核心功能
 
 *   **双模式截图抓取**：
-    *   **链接模式**：通过模拟点击 UI 并复制链接，捕获 `tradingview.com/x/...` 原始分享链接，并自动将其转换为 TradingView 官方 S3 存储的直链（如 `https://s3.tradingview.com/snapshots/...`）。
+    *   **链接模式**：通过模拟点击 UI 并复制链接，捕获 `tradingview.com/x/...` 原始分享链接，并自动将其转换为 TradingView 官方 S3 存储的直链（如 `https://s3.tradingview.com/snapshots/...`）。每次捕获前会清空剪贴板，确保读取到的始终是本次请求生成的最新链接，避免返回上一次请求残留的旧快照。
     *   **图片数据模式**：通过键盘快捷键（`Ctrl+Shift+S`）向页面派发事件，直接从剪贴板捕获二进制 PNG 图片，并以 Base64 (`data:image/png;base64,...`) 数据 URL 形式返回。
 *   **智能时间周期转换**：自动将人性化的时间周期输入（例如 `1h`、`4h`、`1D`、`15m`）转换为 TradingView 认可的标准参数（如 `60`、`240`、`D`）。
 *   **安全自动登录**：支持注入 `sessionid` 与 `sessionid_sign` 会话 Cookies，自动以 TradingView 登录用户身份访问页面，支持加载包含个人指标的自定义图表布局。

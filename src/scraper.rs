@@ -261,6 +261,13 @@ impl TradingViewScraper {
         // Wait for dropdown menu to render
         std::thread::sleep(Duration::from_millis(800));
 
+        // Clear the clipboard BEFORE clicking "Copy link" so we never read a
+        // stale link left over from a previous capture. Without this, polling
+        // can return the prior request's link if TradingView hasn't written the
+        // new one yet (e.g. BNB returning a leftover ETH snapshot link).
+        info!("Clearing clipboard before capture...");
+        let _ = self.tab.evaluate("navigator.clipboard.writeText('')", true);
+
         info!("Finding 'Copy link' element using XPath...");
         let copy_link_el = self
             .tab
@@ -272,7 +279,9 @@ impl TradingViewScraper {
             .click()
             .map_err(|e| anyhow!("Failed to click 'Copy link': {}", e))?;
 
-        // Poll the clipboard for the copied URL
+        // Poll the clipboard for the copied URL. Because we cleared the
+        // clipboard above, any link we read here is guaranteed to be the one
+        // TradingView wrote for THIS request.
         info!("Polling clipboard for the screenshot link...");
         let mut clipboard_url = None;
         for _ in 1..=15 {

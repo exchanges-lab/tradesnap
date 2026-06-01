@@ -13,6 +13,7 @@
 - 规范并优化了项目整体文件结构与代码排版格式。
 
 ### Fixed
+- **链接模式返回旧快照链接**：`get_screenshot_link` 在点击 "Copy link" 前未清空剪贴板，轮询时可能读到上一次请求残留的旧链接并直接返回，导致连续请求（不同 ticker / interval）拿到相同甚至张冠李戴的快照（如同步 BNB 却返回上一轮 ETH 的链接）。现在每次捕获前先清空剪贴板，确保读取到的始终是本次请求生成的链接。
 - 自动清理 Chrome Profile 目录下残留的 Chromium 锁定文件（`SingletonLock`、`SingletonSocket` 和 `SingletonCookie`），避免 Docker 容器环境下重启时出现的冷启动连接超时和崩溃问题。
 
 ## [0.2.2] - 2026-05-31
