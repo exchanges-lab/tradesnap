@@ -13,6 +13,9 @@
 - 规范并优化了项目整体文件结构与代码排版格式。
 
 ### Fixed
+- 为截图请求增加可配置的硬超时；超时后终止卡住的 Chromium 并返回 HTTP 504，避免同步 CDP/剪贴板调用永久占用 scraper 锁。
+- 截图失败时直接返回 HTTP 错误，不再在同一个请求内自动重建浏览器并重试。
+- 将 24 小时浏览器通信空闲超时缩短为 5 分钟，避免失效 CDP 会话长期挂起。
 - **链接模式返回旧快照链接**：`get_screenshot_link` 在点击 "Copy link" 前未清空剪贴板，轮询时可能读到上一次请求残留的旧链接并直接返回，导致连续请求（不同 ticker / interval）拿到相同甚至张冠李戴的快照（如同步 BNB 却返回上一轮 ETH 的链接）。现在每次捕获前先清空剪贴板，确保读取到的始终是本次请求生成的链接。
 - 自动清理 Chrome Profile 目录下残留的 Chromium 锁定文件（`SingletonLock`、`SingletonSocket` 和 `SingletonCookie`），避免 Docker 容器环境下重启时出现的冷启动连接超时和崩溃问题。
 

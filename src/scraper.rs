@@ -75,8 +75,9 @@ impl TradingViewScraper {
         let mut builder = LaunchOptions::default_builder();
         builder.headless(config.headless);
         builder.user_data_dir(Some(profile_dir));
-        // Keep browser alive for long-running server (default 30s is way too short)
-        builder.idle_browser_timeout(Duration::from_secs(86400));
+        // A dead CDP connection must not leave a request blocked for hours. The
+        // next request recreates an idle browser during its pre-flight check.
+        builder.idle_browser_timeout(Duration::from_secs(300));
 
         let window_size_arg = format!(
             "--window-size={},{}",
@@ -414,4 +415,21 @@ impl TradingViewScraper {
     pub fn is_alive(&self) -> bool {
         self.tab.evaluate("1", false).is_ok()
     }
+
+    /// Kills the Chromium process using TradeSnap's dedicated profile. This is
+    /// the hard-stop fallback when a synchronous CDP operation ignores the
+    /// request deadline.
+    #[cfg(target_os = "linux")]
+    pub fn terminate_profile_chromium() {
+        if let Ok(current_dir) = std::env::current_dir()
+            && let Some(profile) = current_dir.join("target/chrome_profile").to_str()
+        {
+            let _ = std::process::Command::new("pkill")
+                .args(["-9", "-f", profile])
+                .status();
+        }
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub fn terminate_profile_chromium() {}
 }

@@ -8,6 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{error, info};
 use tradesnap::{Config, TradingViewScraper};
 
@@ -27,6 +28,7 @@ struct ChartResponse {
 
 struct AppState {
     scraper: std::sync::Mutex<TradingViewScraper>,
+    request_timeout: Duration,
 }
 
 #[tokio::main]
@@ -49,9 +51,11 @@ async fn main() -> anyhow::Result<()> {
     info!("Configuration loaded successfully");
 
     // Initialize persistent scraper singleton
+    let request_timeout = Duration::from_secs(config.request_timeout_seconds);
     let scraper = TradingViewScraper::new(config)?;
     let state = Arc::new(AppState {
         scraper: std::sync::Mutex::new(scraper),
+        request_timeout,
     });
 
     // Build routes
@@ -87,7 +91,8 @@ async fn get_chart(
     let interval = params.interval.clone();
 
     // Spawn browser session in a blocking task since headless_chrome has blocking API
-    let res = tokio::task::spawn_blocking(move || {
+    let request_timeout = state.request_timeout;
+    let mut task = tokio::task::spawn_blocking(move || {
         let mut scraper_lock = state
             .scraper
             .lock()
@@ -117,49 +122,35 @@ async fn get_chart(
             scraper_lock.get_screenshot_link(&ticker, &interval)
         };
 
-        match run_result {
-            Ok(url) => {
-                let png_url = if scraper_lock.config.use_save_shortcut {
-                    url.clone()
-                } else {
-                    TradingViewScraper::convert_link_to_image_url(&url)
-                        .unwrap_or_else(|| url.clone())
-                };
-                Ok::<_, anyhow::Error>((url, png_url))
-            }
-            Err(e) => {
-                error!(
-                    "Scraping failed: {:?}. Attempting to recreate browser and retry...",
-                    e
-                );
-                // Recreate the scraper
-                match TradingViewScraper::new(scraper_lock.config.clone()) {
-                    Ok(new_scraper) => {
-                        *scraper_lock = new_scraper;
-                        // Retry
-                        let retry_result = if scraper_lock.config.use_save_shortcut {
-                            scraper_lock.get_chart_image_url(&ticker, &interval)?
-                        } else {
-                            scraper_lock.get_screenshot_link(&ticker, &interval)?
-                        };
-                        let png_url = if scraper_lock.config.use_save_shortcut {
-                            retry_result.clone()
-                        } else {
-                            TradingViewScraper::convert_link_to_image_url(&retry_result)
-                                .unwrap_or_else(|| retry_result.clone())
-                        };
-                        Ok((retry_result, png_url))
-                    }
-                    Err(recreate_err) => Err(anyhow::anyhow!(
-                        "Failed to recreate scraper after failure: {}. Original error: {}",
-                        recreate_err,
-                        e
-                    )),
-                }
-            }
+        let url = run_result?;
+        let png_url = if scraper_lock.config.use_save_shortcut {
+            url.clone()
+        } else {
+            TradingViewScraper::convert_link_to_image_url(&url).unwrap_or_else(|| url.clone())
+        };
+        Ok::<_, anyhow::Error>((url, png_url))
+    });
+
+    let res = match tokio::time::timeout(request_timeout, &mut task).await {
+        Ok(result) => result,
+        Err(_) => {
+            error!(
+                timeout_seconds = request_timeout.as_secs(),
+                "Screenshot request timed out; terminating Chromium"
+            );
+            TradingViewScraper::terminate_profile_chromium();
+            // Give the killed CDP session a brief chance to unwind and release
+            // the scraper mutex. The HTTP deadline has already been reached.
+            let _ = tokio::time::timeout(Duration::from_secs(2), &mut task).await;
+            return Err((
+                StatusCode::GATEWAY_TIMEOUT,
+                format!(
+                    "Screenshot request timed out after {} seconds",
+                    request_timeout.as_secs()
+                ),
+            ));
         }
-    })
-    .await;
+    };
 
     match res {
         Ok(Ok((image_url, png_url))) => {

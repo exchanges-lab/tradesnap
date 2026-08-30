@@ -29,6 +29,7 @@ pub struct Config {
     pub window_height: u32,
     pub chart_page_id: String,
     pub use_save_shortcut: bool,
+    pub request_timeout_seconds: u64,
 }
 
 impl Config {
@@ -79,6 +80,14 @@ impl Config {
             .to_lowercase()
             == "true";
 
+        let request_timeout_seconds = env::var("TRADESNAP_REQUEST_TIMEOUT_SECONDS")
+            .unwrap_or_else(|_| "20".to_string())
+            .parse::<u64>()
+            .map_err(|source| ConfigError::ParseIntError {
+                key: "TRADESNAP_REQUEST_TIMEOUT_SECONDS".to_string(),
+                source,
+            })?;
+
         Ok(Self {
             rust_log,
             session_id,
@@ -88,6 +97,7 @@ impl Config {
             window_height,
             chart_page_id,
             use_save_shortcut,
+            request_timeout_seconds,
         })
     }
 }
