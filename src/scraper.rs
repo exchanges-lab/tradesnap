@@ -198,7 +198,7 @@ impl TradingViewScraper {
     /// Navigates to a chart page and waits for its elements.
     pub fn navigate_to_chart(&self, ticker: &str, interval: &str, use_layout: bool) -> Result<()> {
         let mapped_interval = Self::map_interval(interval);
-        let chart_url = if use_layout {
+        let chart_url = if use_layout && !self.config.chart_page_id.is_empty() {
             format!(
                 "https://in.tradingview.com/chart/{}/?symbol={}&interval={}&theme=light",
                 self.config.chart_page_id, ticker, mapped_interval

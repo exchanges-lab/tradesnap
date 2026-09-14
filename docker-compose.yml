@@ -4,10 +4,13 @@ services:
     container_name: tradesnap
     env_file:
       - .env
-    networks:
-      - cycle
+    ports:
+      - "8003:8003"
     restart: unless-stopped
+    # Optional: connect to an existing external network if needed
+    # networks:
+    #   - cycle
 
-networks:
-  cycle:
-    external: true
+# networks:
+#   cycle:
+#     external: true

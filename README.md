@@ -122,7 +122,7 @@ TradeSnap 支持通过系统环境变量或项目根目录下的 `.env` 文件�
 | `MCP_SCRAPER_HEADLESS` | 是否无头（后台）模式运行 Chromium 浏览器 | 否 | `true` | `true` 或 `false` |
 | `MCP_SCRAPER_WINDOW_WIDTH` | 浏览器虚拟视口宽度（影响截图的分辨率） | 否 | `1920` | `1920` |
 | `MCP_SCRAPER_WINDOW_HEIGHT` | 浏览器虚拟视口高度（影响截图的分辨率） | 否 | `1080` | `1080` |
-| `MCP_SCRAPER_CHART_PAGE_ID` | 您的 TradingView 自定义图表保存布局 ID (在 S3 转换时使用) | 否 | - | `your_layout_id` |
+| `MCP_SCRAPER_CHART_PAGE_ID` | 您的 TradingView 自定义图表保存布局 ID (为空时使用默认图表) | 否 | - | `your_layout_id` |
 | `MCP_SCRAPER_USE_SAVE_SHORTCUT` | 截图捕获模式：`true` 触发 Ctrl+Shift+S 返回 Base64 数据；`false` 触发 Click 复制返回 S3 官方链接 | 否 | `true` | `false` |
 | `TRADESNAP_REQUEST_TIMEOUT_SECONDS` | 单次截图请求的硬超时；超时后终止卡住的 Chromium 并返回 HTTP 504 | 否 | `20` | `20` |
 

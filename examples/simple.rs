@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
     );
 
     // Create a custom Chrome user data directory to write preferences
-    let profile_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")).join("target/chrome_profile");
+    let profile_dir = std::env::current_dir()?.join("target/chrome_profile");
     let preferences_dir = profile_dir.join("Default");
     std::fs::create_dir_all(&preferences_dir)?;
 
